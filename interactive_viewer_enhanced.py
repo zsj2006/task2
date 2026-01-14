@@ -202,8 +202,9 @@ class InvoiceViewerApp:
         table_container = tk.Frame(left_frame, bg='#f0f0f0')
         table_container.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
 
+        # 使用Grid布局确保滚动条正确显示
         table_frame = tk.Frame(table_container)
-        table_frame.pack(side=tk.TOP, fill=tk.BOTH, expand=True)
+        table_frame.pack(fill=tk.BOTH, expand=True)
 
         columns = []
         self.tree = ttk.Treeview(table_frame, columns=columns, show='headings', selectmode='browse')
@@ -212,8 +213,13 @@ class InvoiceViewerApp:
         vsb = ttk.Scrollbar(table_frame, orient="vertical", command=self.tree.yview)
         self.tree.configure(yscrollcommand=vsb.set)
 
-        self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        vsb.pack(side=tk.RIGHT, fill=tk.Y)
+        # 使用grid布局确保滚动条紧贴表格
+        self.tree.grid(row=0, column=0, sticky='nsew')
+        vsb.grid(row=0, column=1, sticky='ns')
+
+        # 配置grid权重使表格可扩展
+        table_frame.grid_rowconfigure(0, weight=1)
+        table_frame.grid_columnconfigure(0, weight=1)
 
         hsb_frame = tk.Frame(table_container, height=25, bg='#cccccc', relief=tk.SUNKEN, bd=1)
         hsb_frame.pack(side=tk.BOTTOM, fill=tk.X)
@@ -406,6 +412,37 @@ class InvoiceViewerApp:
             row2, text="适应窗口", command=self.fit_to_window,
             width=8, height=2, bg='#ffa500', fg='white', font=("微软雅黑", 9)
         ).pack(side=tk.RIGHT, padx=3)
+
+        # 第三行：旋转控制
+        row3 = tk.Frame(control_panel, bg='#e0e0e0')
+        row3.pack(fill=tk.X, pady=5)
+
+        tk.Label(row3, text="旋转：", font=("微软雅黑", 10, "bold"), bg='#e0e0e0').pack(side=tk.LEFT, padx=5)
+
+        tk.Button(
+            row3, text="↺ 左转90°", command=lambda: self.rotate(-90),
+            width=10, height=2, bg='#9370db', fg='white', font=("微软雅黑", 9)
+        ).pack(side=tk.LEFT, padx=3)
+
+        tk.Button(
+            row3, text="↻ 右转90°", command=lambda: self.rotate(90),
+            width=10, height=2, bg='#9370db', fg='white', font=("微软雅黑", 9)
+        ).pack(side=tk.LEFT, padx=3)
+
+        tk.Button(
+            row3, text="⇄ 水平翻转", command=self.flip_h,
+            width=10, height=2, bg='#dc143c', fg='white', font=("微软雅黑", 9)
+        ).pack(side=tk.LEFT, padx=3)
+
+        tk.Button(
+            row3, text="⇅ 垂直翻转", command=self.flip_v,
+            width=10, height=2, bg='#dc143c', fg='white', font=("微软雅黑", 9)
+        ).pack(side=tk.LEFT, padx=3)
+
+        tk.Button(
+            row3, text="🔄 重置", command=self.reset_transform,
+            width=8, height=2, bg='#696969', fg='white', font=("微软雅黑", 9)
+        ).pack(side=tk.LEFT, padx=3)
 
         # 状态栏
         self.status_bar = tk.Label(
@@ -640,6 +677,39 @@ class InvoiceViewerApp:
             scale = (canvas_width * 0.95) / base_width
             self.zoom_factor = max(0.5, min(scale, 3.0))
             self.refresh_display()
+
+    def rotate(self, angle):
+        """旋转图片"""
+        self.rotation_angle = (self.rotation_angle + angle) % 360
+        self.refresh_display()
+        self.update_status(f"旋转: {angle}° (当前角度: {self.rotation_angle}°)")
+
+    def flip_h(self):
+        """水平翻转"""
+        self.flip_horizontal = not self.flip_horizontal
+        self.refresh_display()
+        self.update_status(f"水平翻转: {self.flip_horizontal}")
+
+    def flip_v(self):
+        """垂直翻转"""
+        self.flip_vertical = not self.flip_vertical
+        self.refresh_display()
+        self.update_status(f"垂直翻转: {self.flip_vertical}")
+
+    def reset_transform(self):
+        """重置变换"""
+        self.rotation_angle = 90
+        self.flip_horizontal = False
+        self.flip_vertical = False
+        self.zoom_factor = 2.0
+        self.refresh_display()
+        self.update_slider()
+        self.update_page_label()
+        self.update_status("已重置所有变换")
+
+    def update_slider(self):
+        """更新滑块位置（如果有的话）"""
+        pass
 
     def edit_cell_dialog(self, row_idx, col_idx, col_name, current_value):
         """编辑单元格对话框"""
@@ -927,6 +997,13 @@ class InvoiceViewerApp:
 
             for item in self.tree.get_children():
                 self.tree.delete(item)
+
+            # 清除右侧图片
+            self.canvas.delete("all")
+            self.current_image = None
+            self.photo = None
+            self.current_page_num = None
+            self.page_label.config(text="")
 
             self.stats_label.config(text=f"共 0 条记录", fg='red')
             self.update_status("所有数据已清除")

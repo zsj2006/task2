@@ -4,60 +4,146 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a simple calculator application built with Python and Tkinter. It provides a GUI calculator with basic arithmetic operations.
+This is a Chinese invoice OCR recognition system built with Python. The project contains multiple tools:
 
-## Running the Application
+1. **OCR Scripts** - Extract invoice information from PDF files using PaddleOCR
+2. **Interactive Viewer** - GUI application for viewing and editing OCR results
+3. **Calculator** - Simple calculator application
 
+## Core Dependencies
+
+- **PaddleOCR** - OCR recognition (Chinese/English)
+- **PyMuPDF (fitz)** - PDF to image conversion
+- **pandas/openpyxl** - Excel file generation and manipulation
+- **Tkinter** - GUI framework
+- **Pillow (PIL)** - Image processing
+
+Install dependencies:
+```bash
+pip install paddleocr pymupdf pandas openpyxl pillow
+```
+
+## Running the Applications
+
+### Interactive Invoice Viewer
+```bash
+python interactive_viewer.py
+```
+- Launches a GUI viewer for inspecting PDF pages and editing OCR results
+- Automatically prompts for PDF file selection on startup
+- Generates high-resolution PNG cache in `{pdf_name}_pages_cache/` directory
+
+### OCR Recognition Scripts
+
+For 234.pdf:
+```bash
+python cloudcode_ocr_234.py
+```
+
+For 345.pdf:
+```bash
+python cloudcode_ocr_345.py
+```
+
+Enhanced OCR with debug output:
+```bash
+python improved_ocr.py
+```
+
+### Calculator
 ```bash
 python calculator.py
 ```
 
+## Building Executable
+
+### Quick Build
+```bash
+快速打包.bat
+```
+Silent build with minimal output.
+
+### Full Build
+```bash
+打包程序.bat
+```
+Verbose build with progress indicators and error handling.
+
+Both scripts:
+1. Check/install PyInstaller
+2. Clean old build files
+3. Build `interactive_viewer.py` into `通用票据识别查看器.exe`
+4. Copy executable to current directory
+5. Clean up temporary files
+
 ## Architecture
 
-### Single-File Structure
+### OCR Pipeline Pattern
 
-The entire application is contained in `calculator.py`. It follows an object-oriented design pattern:
+All OCR scripts follow a common three-stage pipeline:
 
-- **Calculator class** (lines 4-215): The main application class that encapsulates all calculator logic and UI components.
+1. **PDF to Image Conversion** (`pdf_to_ocr_images`)
+   - Opens PDF with PyMuPDF
+   - Renders each page at 2-3x zoom for clarity
+   - Converts to numpy array for PaddleOCR
 
-### State Management
+2. **Text Recognition** (PaddleOCR)
+   - Uses Chinese language model (`lang='ch'`)
+   - Returns text fragments with confidence scores
+   - Filters low-confidence results (threshold ~0.3-0.5)
 
-The calculator maintains state through instance variables (lines 11-18):
+3. **Information Extraction** (`parse_invoice_text`)
+   - Regex-based field extraction from OCR text
+   - Handles multiple invoice formats (VAT special, VAT ordinary, electronic, generic)
+   - Calculates derived fields (tax amount, pre-tax amount)
 
-- `current`: The currently displayed number (as string)
-- `stored`: The previously stored number for operations (as float or None)
-- `operation`: The pending operation symbol ('+', '-', '×', '÷')
-- `new_input`: Boolean flag indicating if the next digit press starts a new number
+### Data Schema
 
-### UI Layout
+Standard invoice output fields:
+- 票据序号 - Sequential page number
+- 票据类型 - Invoice type classification
+- 购买方名称/购买方统一信用代码 - Buyer information
+- 销售方名称/销售方统一信用代码 - Seller information
+- 项目名称 - Description of goods/services
+- 金额（不含税）/税率(%)/税额/价税合计 - Financial breakdown
 
-The interface uses Tkinter's grid geometry manager:
-- Display area at row 0 (spans 4 columns)
-- 5 rows of buttons (rows 1-5) with 4 columns each
-- Row/column weights configured for equal spacing (lines 32-35)
+### Interactive Viewer Architecture
 
-### Event Handling
+The `interactive_viewer.py` implements a split-pane GUI:
 
-Button presses are routed through `button_click()` (line 75) which delegates to specialized methods:
-- `digit_press()`: Number input
-- `decimal_press()`: Decimal point handling
-- `operation_press()`: Operator handling with immediate execution if chain operation
-- `equals_press()`: Execute pending operation
-- `clear_press()`: Reset all state
-- `sign_press()`: Toggle positive/negative
-- `percent_press()`: Convert to percentage
+**Left Panel - Data Table:**
+- Uses `ttk.Treeview` with dual scrollbars (horizontal + vertical)
+- Loads Excel data with `skiprows=[0,1]` to bypass title rows
+- Supports inline editing via double-click or F2
+- Row operations: add, delete, sort
 
-Keyboard input is handled via `key_press()` (line 181) which maps keyboard events to button actions:
-- Number keys and operators map directly
-- `*` → `×`, `/` → `÷`
-- Enter/`=` triggers equals
-- Backspace deletes last digit
-- Escape clears
+**Right Panel - PDF Preview:**
+- Canvas-based PNG viewer with pan/zoom
+- Image transformation: zoom (50%-300%), rotate (90°), flip (horizontal/vertical)
+- High-resolution source images (4x DPI generation)
+- Mouse wheel zoom, slider control, fit-to-window
 
-### Calculation Logic
+**State Management:**
+- `base_image` - Original PIL Image (unscaled reference)
+- `zoom_factor` - Display scaling multiplier
+- `rotation_angle/flip_horizontal/flip_vertical` - Transform state
+- PNG cache directory auto-created on first load
 
-The `calculate()` method (line 126) performs the actual arithmetic:
-- Handles division by zero with "错误" error message
-- Converts integer results to integers for cleaner display
-- Rounds floating-point results to 10 decimal places to avoid precision issues
-- All exceptions caught and displayed as "错误"
+### Excel Generation Pattern
+
+All OCR scripts generate formatted Excel files:
+- Title row with generation date and page count
+- Styled header row (blue background #4472C4, white text)
+- Thin borders on all cells
+- Column width auto-adjustment
+- Frozen header row for scrolling
+- Auto-open with `os.startfile()`
+
+## PDF Path Configuration
+
+Scripts reference PDF files in parent directory:
+- `cloudcode_ocr_234.py`: `../task1/批量发票/234.pdf`
+- `cloudcode_ocr_345.py`: `../task1/345.pdf`
+- `improved_ocr.py`: `../task1/345.pdf`
+
+Adjust paths if project structure differs.

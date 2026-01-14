@@ -1,0 +1,11 @@
+RPA-Python Demo File
+====================
+This is a test file demonstrating RPA-Python basic features.
+
+Test Items:
+- File write
+- File read
+- Text processing
+
+Generated at:
+Last modified: 2026-01-14 10:50:56

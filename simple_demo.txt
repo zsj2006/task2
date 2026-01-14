@@ -1,0 +1,10 @@
+RPA-Python Simple Demo
+=====================
+This demonstrates file operations without browser automation.
+
+Test Data:
+- Item 1: Python RPA
+- Item 2: Automation
+- Item 3: Productivity
+
+[Appended] Additional content
